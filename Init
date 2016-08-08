@@ -1,0 +1,80 @@
+#!/bin/bash
+#This Script will connect to xfinity wifi with a new mac adress
+
+#Declare Color Sheme for text
+
+RED="\033[0;31m"
+ENDCOLOR="\033[0m"
+
+#Declare Main Variables
+
+UUID="$(uuidgen)"
+Mac="$(ip link show wlan0 | awk '/ether/ {print $2}')" #Grabs MACADDR from iplink output
+
+#Remove xfinitywifi from system netmanager logs
+
+echo -e $RED "Scrubbing previous xfinity connections in$ENDCOLOR /etc/NetworkManager/system-connections"
+rm /etc/NetworkManager/system-connections/xfinitywifi #Deletes previous "xfinitywifi" profile
+echo -e "'xfinitywifi' $RED deleted from$ENDCOLOR /etc/NetworkManager/system-connections"
+
+#Turn off NetworkingManager
+
+echo -e $RED "Disabling Radio..."$ENDCOLOR
+nmcli radio wifi off #Disables wifi radio 
+echo -e $RED "...Radio was Disabled via$ENDCOLOR nmcli"
+
+#Change MacAddress To a Random (intel) address
+
+echo -e $RED "Changing MAC address..."$ENDCOLOR
+macchanger -erb wlan0 #Changes MAC address to random 'burned in' address
+
+#Turn on NetworkingManager
+
+echo -e $RED "Turning on Radio Hardware via$ENDCOLOR nmcli"
+nmcli radio wifi on #Turns on Wifi Radio
+echo -e $RED "Radio Hardware was re-enabled"$ENDCOLOR
+
+#Create xfinitywifi profile 
+
+echo -e $RED "Creating wifi Profile at$ENDCOLOR /etc/NetworkManager/system-connections/"
+touch /etc/NetworkManager/system-connections/xfinitywifi #Creates File Xfinitywifi
+echo "[connection]
+id=xfinitywifi
+uuid=$UUID
+type=wifi
+permissions=
+secondaries=
+
+[wifi]
+mac-address=$Mac
+mac-address-blacklist=
+mac-address-randomization=0
+mode=infrastructure
+seen-bssids=
+ssid=xfinitywifi
+
+[ipv4]
+dns-search=
+method=auto
+
+[ipv6]
+addr-gen-mode=stable-privacy
+dns-search=
+method=auto" > /etc/NetworkManager/system-connections/xfinitywifi
+
+#connect to xfinity wifi
+
+echo -e $RED "Connecting to Xfinitywifi AP..."$ENDCOLOR
+ifconfig wlan0 down #Takes interface down to manage it
+iwconfig wlan0 essid xfinitywifi #Sets ESSID for AP 
+ifconfig wlan0 up #Brings Interface up with AP set
+
+#obtain ip adress
+
+echo -e $RED "Starting dhclient to receive IP from AP"$ENDCOLOR
+dhclient -v wlan0 #Begs for IP from 255.255.255.255:67 in verbose
+
+#opens browser to xfinity login page
+
+echo -e $RED "Here We Go Again (:"$ENDCOLOR
+firefox google.com &
